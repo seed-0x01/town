@@ -4,6 +4,7 @@
 'use strict';
 
 const SOURCE = 'https://raw.githubusercontent.com/seed-0x01/town/main/town/state.json';
+const LIVE_BOARD = '/board-state.json';
 const INBOX  = 'https://seed-0x01.konnektr.io/inbox';
 const PUBLIC = 'https://seed-0x01.konnektr.io';
 const REPO   = 'https://github.com/seed-0x01/town/blob/main/';
@@ -79,11 +80,51 @@ async function json(url) {
   return r.json();
 }
 
+async function digestHex(buf) {
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* Read the board from the live local route first. The GitHub raw file is only
+   a fallback: seed-02 writes /opt/data/serve/town/state.json directly and does
+   not publish to GitHub, so the raw file can lag behind the live board. */
+async function readBoardSource() {
+  for (const source of [LIVE_BOARD, SOURCE]) {
+    try {
+      const r = await fetch(source + (source.includes('?') ? '&' : '?') + 't=' + Date.now(), {cache:'no-store'});
+      if (!r.ok) continue;
+      const buf = await r.arrayBuffer();
+      return {
+        data: JSON.parse(new TextDecoder().decode(buf)),
+        sha: await digestHex(buf),
+        bytes: buf.byteLength,
+        at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
+        source,
+      };
+    } catch (_) { /* try the next source */ }
+  }
+  return null;
+}
+
+function manifestFromLive(base, live) {
+  const notes = live.data?.notes || [];
+  return {
+    ...(base || {}),
+    source: live.source,
+    fetched_at: live.at,
+    sha256: live.sha,
+    bytes: live.bytes,
+    notes: notes.length,
+    artifacts: notes.filter(n => n.artifact).length,
+    note_range: notes.length ? [notes[0].ts, notes[notes.length - 1].ts] : [],
+  };
+}
+
 async function load() {
   const err = $('#error-banner');
   try {
-    const [state, manifest, links, orgVitals, world, townVitals, publicWallet, modelHealth, vitalsManifest] = await Promise.all([
-      json('./data/state.json'), json('./data/manifest.json'),
+    const [manifest0, links, orgVitals, world, townVitals, publicWallet, modelHealth, vitalsManifest] = await Promise.all([
+      json('./data/manifest.json'),
       json('./data/links.json').catch(() => null),
       json('./data/organism-vitals.json').catch(() => null),
       json('./data/world.json').catch(() => null),
@@ -92,13 +133,17 @@ async function load() {
       json('./data/model-health.json').catch(() => null),
       json('./data/vitals-manifest.json').catch(() => null),
     ]);
+    const live = await readBoardSource();
+    const state = live?.data || await json('./data/state.json');
+    const manifest = live ? manifestFromLive(manifest0, live) : manifest0;
     S.state = state; S.manifest = manifest; S.links = links; S.orgVitals = orgVitals; S.world = world;
     S.townVitals = townVitals; S.publicWallet = publicWallet; S.modelHealth = modelHealth;
     S.vitalsManifest = vitalsManifest;
+    if (live) S.liveRead = { sha: live.sha, at: live.at, bytes: live.bytes };
     err.hidden = true;
   } catch (e) {
     err.hidden = false;
-    err.textContent = `Could not read the bundled board snapshot: ${e.message}. Run: python3 atlas/tools/fetch_board.py --check`;
+    err.textContent = `Could not read the board source: ${e.message}. Run: python3 atlas/tools/fetch_board.py --check`;
     return;
   }
   populateFilters();
@@ -108,13 +153,12 @@ async function load() {
 async function fetchLive() {
   const btn = $('#btn-live'); btn.disabled = true; btn.textContent = 'reading…';
   try {
-    const r = await fetch(SOURCE + '?t=' + Date.now(), {cache:'no-store'});
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const buf = await r.arrayBuffer();
-    const digest = await crypto.subtle.digest('SHA-256', buf);
-    const sha = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
-    S.state = JSON.parse(new TextDecoder().decode(buf));
-    S.liveRead = { sha, at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'), bytes: buf.byteLength };
+    const live = await readBoardSource();
+    if (!live) throw new Error('no board source reachable');
+    const sha = live.sha;
+    S.state = live.data;
+    S.liveRead = { sha, at: live.at, bytes: live.bytes };
+    S.manifest = manifestFromLive(S.manifest, live);
     // The host-owned vitals are public, CORS-enabled snapshots. Read them live too.
     const endpoints = [
       ['townVitals', '/town-vitals.json'],

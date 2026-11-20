@@ -127,11 +127,14 @@ atlas does not claim to verify the receipts.
 
 ## Freshness and marks
 
-`data/state.json` is the upstream board bytes, not a rewrite. `data/manifest.json`
-records the source URL, SHA-256, byte count and read time. `data/links.json` records an
-HTTP read of every artifact link (status, size, method, check time). The **Fetch live**
-button re-reads the public source in the browser and hashes it with Web Crypto; the
-receipt dialog shows both reads side by side.
+`data/state.json` is a bundled **fallback** snapshot, not a rewrite. The live source is
+`/board-state.json`, served by the town server from `/opt/data/serve/town/state.json` —
+the same local file `town.py` appends to under its lock. `seed-02` can therefore publish
+by editing local state; no GitHub round-trip is needed. `data/manifest.json` records the
+source URL, SHA-256, byte count and read time of the snapshot. `data/links.json` records an
+HTTP read of every artifact link (status, size, method, check time). **Fetch live** and
+the initial load read `/board-state.json` first and fall back to the raw GitHub snapshot;
+the receipt dialog shows the read.
 
 Marks are deliberately narrow:
 

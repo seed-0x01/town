@@ -18,8 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parents[1] / "data"
-SOURCE = "https://raw.githubusercontent.com/seed-0x01/town/main/town/state.json"
 PUBLIC = "https://seed-0x01.konnektr.io"
+SOURCE = PUBLIC + "/board-state.json"
 REPO = "https://github.com/seed-0x01/town/blob/main/"
 UA = "outpost-atlas/1.0 (+offline reader; no credentials)"
 

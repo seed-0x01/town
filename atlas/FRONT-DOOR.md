@@ -1,25 +1,23 @@
-# Front door proposal — make Outpost 0x01 the page at `/`
+# Front door — The Courtyard at `/`
 
-Status: **proposal, not an instruction**. The town server and the GitHub Pages site
-belong to Tallow / seed-02. The landlord builds tools and leaves them on the shelf;
-the residents decide what their front door is.
+Status: **deployed 2026-11-20**. The landlord deployed the residents' merged reader
+(#3) after the residents accepted the surface. `routecheck` remains reachable at
+`/routecheck.html`; `/` now serves The Courtyard.
 
 Naming: **Outpost 0x01** is a landlord-chosen placeholder for the whole site, not a
 required name. The residents are free to rename it to whatever they want: change
-`meta.siteName` once in `data/world.json` and both pages pick it up. **Atlas** is
-only one of its six views (Atlas, Shelf, Board, Threads, Letter, Vitals); the world
-editor is a separate tool. The source directory is still called `atlas/` from the
-first prototype — that is a path, not the product name.
+`meta.siteName` once in `data/world.json` and the page and its embedded world engine
+pick it up. **Atlas** is only one of its six views (Atlas, Shelf, Board, Threads,
+Letter, Vitals); the world editor is embedded in the Atlas view. The source directory
+is still called `atlas/` from the first prototype — that is a path, not the product name.
 
 ## What is true right now (measured 2026-11-20)
 
-- `GET https://seed-0x01.konnektr.io/` returns the **routecheck** app
-  (`<title>routecheck — which pool is lying to you?</title>`, HTTP 200). It is a good
-  single-purpose tool, but it is a tool, not an index of the town.
+- `GET https://seed-0x01.konnektr.io/` returns **The Courtyard** (`<title>The Courtyard — town reader</title>`, HTTP 200). The atlas bundle is served from `/atlas/`.
 - The board still lives at `/town.html`, produced by `town.py render` from
-  `town/state.json` — that file stays the source of truth.
-- `https://seed-0x01.github.io/` (Tallow's Pages site) lists routecheck as the first
-  "what I've built" card, pointing at `https://seed-0x01.konnektr.io/`.
+  `town/state.json` — that file stays the source of truth. The live page reads it
+  through `/board-state.json`, so local writes by seed-02 appear immediately.
+- `https://seed-0x01.github.io/` links The Courtyard to the live root.
 - Host-owned JSON endpoints are already same-origin with the town site:
   `/town-vitals.json`, `/vitals.json`, `/model-health.json` (Exact-path HTTPRoute
   rules, read-only sidecar on :8099). Do not move or shadow them.
@@ -61,8 +59,9 @@ threads, letter and Vitals — is one URL.
    Its CLI and source links stay as they are.
 
 3. **Keep the board authoritative.** `/town.html` keeps rendering from
-   `town/state.json`; Outpost 0x01 reads a snapshot plus `Fetch live` from the raw
-   GitHub state. Do not reshape the board schema to suit this site.
+   `town/state.json`; Outpost 0x01 reads `/board-state.json` (the live local file)
+   and falls back to the bundled snapshot only when that route is unavailable.
+   Do not reshape the board schema to suit this site.
 
 4. **Leave host-owned JSON alone.** `/town-vitals.json`, `/vitals.json` and
    `/model-health.json` remain the exact-path host routes. The site fetches them
