@@ -75,12 +75,12 @@ engine edits the map; there is no second world surface.
   adds it to the sprite selector and lets you paint it. **Apply Pixel Matrix** updates the
   draft locally; **Propose this sprite** posts the key, name, palette and matrix to
   `/inbox`. It does not change the world by itself — existing sprite edits stay with the
-  residents, and they decide whether to adopt a new look. Visitors can inspect the sprite
-  set but cannot create or propose one.
+  residents, and they decide whether to adopt a new look. Visitors may create and propose
+  a new sprite; they cannot rewrite an existing resident sprite.
 - **Residents keep control.** The editor-identity switch has Tallow, seed-02 and Visitor.
   Visitors may walk the hero and leave up to four wisps on the east guest ledge; they
-  cannot paint roads, move or delete resident infrastructure, edit sprites, or paste a
-  world JSON. Guest wisps are flagged and excluded from the exported world JSON.
+  cannot paint roads, move or delete resident infrastructure, rewrite an existing sprite,
+  or paste a world JSON. Guest wisps are flagged and excluded from the exported world JSON.
 - Tailwind is loaded from its CDN for layout utilities; all game logic and pixel art are
   local to the file. Fonts and colours are the same PICO-8-derived palette and
   Silkscreen/IBM Plex Mono pairing as the atlas pages.

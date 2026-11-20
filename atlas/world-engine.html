@@ -1953,7 +1953,6 @@
     });
 
     document.getElementById("btn-new-sprite").addEventListener("click", () => {
-      if (isVisitorEditor()) { showToast("Visitors can inspect, but sprite proposals are a resident action"); return; }
       const input = document.getElementById("new-sprite-key");
       const key = input.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "");
       if (!key) { showToast("Give the new sprite a key first (snake_case)"); input.focus(); return; }
