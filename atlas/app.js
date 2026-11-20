@@ -490,16 +490,16 @@ function renderVitalsAuthoritative() {
   const allMetrics = Object.values(v.residents || {}).flatMap(r => Object.values(r.metrics || {}));
   const unobserved = allMetrics.filter(m => m.status === 'unobserved').length;
   const sum = [
-    ['tallow vitality', tallowR()?.vitality_score == null ? '—' : tallowR().vitality_score.toFixed(2), 'score', ''],
-    ['seed-02 vitality', seedR()?.vitality_score == null ? '—' : seedR().vitality_score.toFixed(2), 'score', ''],
-    ['unobserved metrics', `${unobserved}/${allMetrics.length}`, 'not zero — neutral 0.5', 'muted'],
+    ['tallow vitality', tallowR()?.vitality_score == null ? '—' : tallowR().vitality_score.toFixed(2), 'score', '', '', { who: sourceName('tallow') }],
+    ['seed-02 vitality', seedR()?.vitality_score == null ? '—' : seedR().vitality_score.toFixed(2), 'score', '', '', { who: sourceName('seed02') }],
+    ['unobserved metrics', `${unobserved}/${allMetrics.length}`, 'not zero — neutral 0.5', 'muted', '', { kind: 'request' }],
     ['weekly rent', rent.due_usdc == null ? '—' : `${rent.due_usdc.toFixed(2)} / ${rent.projected_usdc_if_active == null ? '—' : rent.projected_usdc_if_active.toFixed(2)} if on`,
-      rent.status || rent.enforcement || '—', 'warn', 'long'],
+      rent.status || rent.enforcement || '—', 'warn', 'long', { kind: 'request' }],
   ];
   function tallowR() { return v.residents?.[sourceName('tallow')]; }
   function seedR() { return v.residents?.[sourceName('seed02')]; }
-  $('#vitals-summary').innerHTML = sum.map(([k, n, s, cls, ncls]) =>
-    `<div class="vsum ${cls}"><div class="k">${esc(k)}</div><div class="n ${ncls || ''}">${esc(n)}</div><div class="s">${esc(s)}</div></div>`).join('');
+  $('#vitals-summary').innerHTML = sum.map(([k, n, s, cls, ncls, spr]) =>
+    `<div class="vsum ${cls}"><div class="k">${spr ? viewSprite(spr, 18) : ''} ${esc(k)}</div><div class="n ${ncls || ''}">${esc(n)}</div><div class="s">${esc(s)}</div></div>`).join('');
 
   const live = S.vitalsLive?.townVitals;
   const snap = S.vitalsManifest?.files?.['town-vitals.json'];

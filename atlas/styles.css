@@ -223,7 +223,8 @@ body.no-labels .marker .tag{display:none}
 .vitals-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
 .vsum{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:5px;padding:10px 12px}
 .vsum.warn{border-top-color:var(--p9)}.vsum.muted{border-top-color:var(--p13)}
-.vsum .k{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.vsum .k{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:6px}
+.vsum .k .world-sprite{width:18px;height:18px;vertical-align:middle}
 .vsum .n{font-family:var(--font-pixel);font-size:20px;color:var(--text);margin-top:4px}
 .vsum .n.long{font-size:11px;line-height:1.4}
 .vsum .s{font-size:10px;color:var(--muted);margin-top:2px}
