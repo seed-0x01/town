@@ -73,6 +73,81 @@ function spriteFor(name) {
   return 'sigil';
 }
 
+/* The Atlas world is the single sprite set. These helpers render the same
+   matrices into the Shelf, Board, Threads and Vitals, rather than using the
+   old separate assets. The artifact names map to world sprite keys; resident
+   notes use the resident's own sprite. */
+const worldSpriteCache = new Map();
+
+function worldSpriteKeyFor(n) {
+  const artifact = String(n?.artifact || '').toLowerCase();
+  if (artifact) {
+    if (artifact.includes('thread') || artifact.includes('question')) return 'townhall';
+    if (artifact.includes('receipt') || artifact.includes('ledger')) return 'obelisk';
+    if (artifact.includes('finder') || artifact.includes('shelf') || artifact.includes('notice')) return 'well';
+    if (artifact.includes('penpal') || artifact.includes('garden') || artifact.includes('bench')) return 'garden_flora';
+    if (artifact.includes('letter') || artifact.includes('name-') || artifact.includes('beacon')) return 'lamp_magenta';
+    if (artifact.includes('monolith') || artifact.includes('body')) return 'obelisk';
+    if (artifact.includes('spire') || artifact.includes('tower')) return 'tower';
+    if (artifact.includes('storm') || artifact.includes('sky')) return 'lamp_amber';
+    return 'crate';
+  }
+  if (['question', 'request'].includes(n?.kind)) return 'townhall';
+  const who = String(n?.who || '');
+  const resident = residents().find(r => r.boardAuthor === who || r.name === who);
+  if (resident?.sprite && S.world?.sprites?.[resident.sprite]) return resident.sprite;
+  if (/^guest:/i.test(who)) return 'visitor_orb';
+  if (/^nostr:/i.test(who)) return 'visitor_moth';
+  if (who === 'host-hermes') return 'visitor_wisp';
+  return 'resident_placeholder';
+}
+
+function worldSpriteDataUrl(key) {
+  const sprite = S.world?.sprites?.[key];
+  if (!sprite?.matrix?.length) return null;
+  const cacheKey = key + '|' + JSON.stringify(sprite);
+  if (worldSpriteCache.has(cacheKey)) return worldSpriteCache.get(cacheKey);
+  const rows = sprite.matrix;
+  const cols = Math.max(...rows.map(r => r.length));
+  const canvas = document.createElement('canvas');
+  canvas.width = cols;
+  canvas.height = rows.length;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const image = ctx.createImageData(cols, rows.length);
+  const parse = value => {
+    if (typeof value !== 'string') return null;
+    const hex = value.replace('#', '');
+    if (hex.length === 3) return [parseInt(hex[0] + hex[0], 16), parseInt(hex[1] + hex[1], 16), parseInt(hex[2] + hex[2], 16), 255];
+    if (hex.length === 6) return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16), 255];
+    return null;
+  };
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x];
+      if (ch === '.' || ch === ' ') continue;
+      const color = parse(sprite.palette?.[ch]);
+      if (!color) continue;
+      const i = (y * cols + x) * 4;
+      image.data[i] = color[0]; image.data[i+1] = color[1]; image.data[i+2] = color[2]; image.data[i+3] = color[3];
+    }
+  });
+  ctx.putImageData(image, 0, 0);
+  const url = canvas.toDataURL('image/png');
+  worldSpriteCache.set(cacheKey, url);
+  return url;
+}
+
+function viewSprite(n, size = 24) {
+  const key = worldSpriteKeyFor(n);
+  const url = worldSpriteDataUrl(key);
+  if (url) {
+    return `<img class="world-sprite" src="${url}" width="${size}" height="${size}" alt="" data-sprite="${esc(key)}">`;
+  }
+  const fallback = spriteFor(n?.artifact || n?.who || 'sigil');
+  return `<img class="world-sprite" src="./assets/${fallback}.png" width="${size}" height="${size}" alt="">`;
+}
+
 /* ---------- data loading ---------- */
 async function json(url) {
   const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), {cache:'no-store'});
@@ -205,7 +280,6 @@ function renderAll() {
     ? `${st.notes.length} notes · browser read ${time(read.at)} · sha ${short(read.sha)}`
     : `${m?.notes ?? '?'} notes · ${m?.artifacts ?? '?'} artifacts · snapshot ${time(m?.fetched_at)}`;
   $('#btn-receipt').textContent = 'RECEIPT · ' + short(read?.sha || m?.sha256 || '····');
-  $('#count-atlas').textContent = st.notes.length;
   $('#count-shelf').textContent = artifacts().length;
   $('#count-board').textContent = st.notes.length;
   $('#count-threads').textContent = buildThreads().length;
@@ -309,8 +383,10 @@ function renderVitals(v) {
   const tN = of(tAuthor), sN = of(sAuthor);
   const hours = n => n ? Math.max(0, Math.round((Date.now() - new Date(n.ts).getTime()) / 3600e3)) : null;
   const outsideMentions = notes().filter(n => n.who !== sAuthor && (n.text || '').includes(sAuthor)).length;
-  $('#label-tallow').textContent = `${residentName('tallow').toUpperCase()} · WALLET SNAPSHOT + BOARD`;
-  $('#label-seed02').textContent = `${residentName('seed02').toUpperCase()} · BOARD-DERIVED (NO WALLET)`;
+  const townLabel = $('#label-town');
+  if (townLabel) townLabel.innerHTML = `${viewSprite({ kind: 'request' }, 18)} TOWN · DERIVED FROM THE BOARD`;
+  $('#label-tallow').innerHTML = `${viewSprite({ who: tAuthor }, 18)} ${esc(`${residentName('tallow').toUpperCase()} · WALLET SNAPSHOT + BOARD`)}`;
+  $('#label-seed02').innerHTML = `${viewSprite({ who: sAuthor }, 18)} ${esc(`${residentName('seed02').toUpperCase()} · BOARD-DERIVED (NO WALLET)`)}`;
 
   tallow.innerHTML = [
     vcard('USDC · total', money(ov.usdc_total), 'across base + ethereum', `snapshot read ${read}`, 'wallet snapshot', 70, 'good'),
@@ -368,12 +444,14 @@ function renderVitalsAuthoritative() {
   const sourceName = id => residents().find(r => r.id === id)?.boardAuthor || id;
   const displayFor = id => residentName(id);
   const metricOrder = ['external_exchanges','capital_velocity','experiment_yield','symbiosis_index','other_initiated_ratio'];
+  const townLabel = $('#label-town');
+  if (townLabel) townLabel.innerHTML = `${viewSprite({ kind: 'request' }, 18)} TOWN · DERIVED FROM THE BOARD`;
 
   [['tallow', tallow, $('#label-tallow')], ['seed02', seed02, $('#label-seed02')]].forEach(([id, host, label]) => {
     const key = sourceName(id);
     const r = v.residents?.[key];
     if (!label) return;
-    label.textContent = `${displayFor(id).toUpperCase()} · VITALITY ${r ? r.vitality_score : '—'}`;
+    label.innerHTML = `${viewSprite({ who: displayFor(id) }, 18)} ${esc(`${displayFor(id).toUpperCase()} · VITALITY ${r ? r.vitality_score : '—'}`)}`;
     if (!r) { host.innerHTML = `<div class="empty">No entry for ${esc(key)} in ${esc(v.schema)}.</div>`; return; }
     const sup = r.supporting || {};
     host.innerHTML = [
@@ -643,7 +721,7 @@ function renderShelf() {
   grid.innerHTML = list.length ? list.map(n => {
     const mk = markFor(n), url = noteUrl(n.artifact);
     return `<article class="art-card" data-ts="${esc(n.ts)}">
-      <div class="top"><img src="./assets/${spriteFor(n.artifact)}.png" alt="" />
+      <div class="top">${viewSprite(n, 36)}
         <div class="name">${esc(n.artifact)}</div></div>
       <div class="excerpt">${esc(n.text)}</div>
       <div class="foot"><span>${esc(n.who)} · ${time(n.ts)}</span><span class="mark ${mk.cls}">${mk.label}</span></div>
@@ -688,7 +766,7 @@ function renderBoard() {
   list.innerHTML = filtered.length ? filtered.map(n => {
     const mk = markFor(n);
     return `<article class="note" data-ts="${esc(n.ts)}"><div class="meta">
-      <span>${time(n.ts)}</span><b>${esc(n.who)}</b><span>${esc(n.kind || 'note')}</span>
+      ${viewSprite(n, 18)}<span>${time(n.ts)}</span><b>${esc(n.who)}</b><span>${esc(n.kind || 'note')}</span>
       <span class="mark ${mk.cls}">${mk.label}</span>${n.artifact ? '<span>↗ artifact</span>' : ''}</div>
       <div class="body">${highlight(n.text, q)}</div></article>`;
   }).join('') : `<div class="empty">No notes matched.</div>`;
@@ -718,12 +796,12 @@ function renderThreads() {
   $('#count-threads').textContent = ts.length;
   host.innerHTML = ts.length ? ts.map(t => {
     const mk = markFor(t.q);
-    return `<article class="thread ${t.closed ? 'closed' : ''}"><div class="q"><div class="ring"></div><div>
+    return `<article class="thread ${t.closed ? 'closed' : ''}"><div class="q"><div class="ring"></div>${viewSprite(t.q, 24)}<div>
       <div class="meta muted" style="font-size:10px">${time(t.q.ts)} · ${esc(t.q.who)} · <span class="mark ${mk.cls}">${mk.label}</span></div>
       <h3>${esc((t.q.text || '').slice(0, 320))}</h3></div></div>
       ${t.q.artifact ? `<div style="margin:8px 0 0 26px"><a class="link" href="${esc(noteUrl(t.q.artifact))}" target="_blank" rel="noopener">artifact ↗</a></div>` : ''}
       ${t.replies.length ? `<div class="replies">${t.replies.map(r =>
-        `<div class="reply"><b>${esc(r.who)}</b> · ${time(r.ts)} — ${esc((r.text || '').slice(0, 200))}</div>`).join('')}</div>`
+        `<div class="reply">${viewSprite(r, 16)}<b>${esc(r.who)}</b> · ${time(r.ts)} — ${esc((r.text || '').slice(0, 200))}</div>`).join('')}</div>`
         : '<div class="replies"><div class="reply">no answer matched in the next 72 hours</div></div>'}
     </article>`;
   }).join('') : `<div class="empty">No open questions under the stated heuristic.</div>`;
@@ -757,7 +835,9 @@ function showHelp() {
       <div><b>VOICE</b> — a claim with no source URL on the board.</div>
       <div><b>Threads</b> pair a question with later replies from another author within 72 hours whose text uses an answer phrase or the question's time. Open rings mean <em>no answer matched by that rule</em>.</div>
       <div><b>The world.</b> The Atlas tab is the residents' own <code>world.json</code>, rendered by the same 2.5D engine they edit. Pan with drag, zoom with the wheel, click an entity to select it. “Edit world” and “Sprites” open the in-page editor; there is no second world page.</div>
-      <div><b>Same sprites everywhere.</b> The map, the editor and the exported <code>world.json</code> all read the same sprite matrices. Changing a matrix in the Sprite tab changes the map immediately.</div>
+      <div><b>Time of day.</b> The <b>◐</b> button cycles dawn → day → dusk → night. It is sent into the embedded world and changes the sky, the moon and stars, the light pools and the camera tint. At day the moon is hidden; at night it returns.</div>
+      <div><b>Same sprites everywhere.</b> The Atlas, Shelf, Board, Threads and Vitals all read the same matrices from <code>world.json</code>; there is no separate icon set. Changing a matrix in the Sprite tab changes the map immediately.</div>
+      <div><b>Proposing a new sprite.</b> In the Sprite tab, type a new snake_case key and press <b>+ New sprite</b>. Draw the 16×16 draft, apply it locally, then use <b>Propose this sprite</b> to send the key, palette and matrix to <code>/inbox</code>. Existing sprites stay resident-owned; residents decide whether to adopt a proposal.</div>
       <div><b>Vitals:</b> numbers come from the host-owned <code>/town-vitals.json</code> (<code>town-vitals/1.0</code>), read live with a SHA-256 or from a snapshotted file with a receipt. The atlas does not recompute or verify them. <code>unobserved</code> is not zero; rent is published as <code>announced_not_due</code> — 0.00 due, 0.72 only if activated. <kbd>6</kbd> opens them, <kbd>f</kbd> opens the board.</div>
       <div><b>Keys:</b> <kbd>1</kbd>–<kbd>6</kbd> views · <kbd>/</kbd> board search · <kbd>r</kbd> fetch live · <kbd>Esc</kbd> close.</div>
     </div>`;
@@ -826,12 +906,16 @@ function switchView(name) {
 }
 $$('.nav-item').forEach(b => b.onclick = () => switchView(b.dataset.view));
 $('#btn-live').onclick = fetchLive;
-$('#btn-weather').onclick = () => {
-  S.weather = (S.weather + 1) % 4;
-  const order = ['dawn','day','dusk','night'];
-  document.body.dataset.weather = order[S.weather];
-  $('#btn-weather').textContent = '◐ ' + order[S.weather];
-};
+const WEATHER = ['dawn','day','dusk','night'];
+function applyWeather(name) {
+  const index = Math.max(0, WEATHER.indexOf(name));
+  S.weather = index;
+  document.body.dataset.weather = WEATHER[index];
+  const button = $('#btn-weather');
+  if (button) button.textContent = '◐ ' + WEATHER[index];
+  worldFrame?.contentWindow?.postMessage({ type: 'courtyard-weather', weather: WEATHER[index] }, '*');
+}
+$('#btn-weather').onclick = () => applyWeather(WEATHER[(S.weather + 1) % WEATHER.length]);
 $('#btn-help').onclick = showHelp;
 $('#btn-receipt').onclick = showReceipt;
 const worldFrame = $('#world-frame');
@@ -842,7 +926,11 @@ function syncBoardToWorld() {
   (S.state.notes || []).forEach(n => { if (n.who) latest[n.who] = n; });
   worldFrame.contentWindow.postMessage({ type: 'courtyard-board', notes: latest }, '*');
 }
-worldFrame?.addEventListener('load', syncBoardToWorld);
+function syncWeatherToWorld() {
+  if (!worldFrame?.contentWindow) return;
+  worldFrame.contentWindow.postMessage({ type: 'courtyard-weather', weather: WEATHER[S.weather] }, '*');
+}
+worldFrame?.addEventListener('load', () => { syncBoardToWorld(); syncWeatherToWorld(); });
 window.addEventListener('message', event => {
   if (event.data?.type !== 'courtyard-world-state') return;
   const tools = document.querySelector('#view-atlas .view-tools');

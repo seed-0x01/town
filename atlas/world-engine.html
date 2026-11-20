@@ -48,6 +48,26 @@
       color: #fff1e8;
       font-family: 'IBM Plex Mono', ui-monospace, monospace;
     }
+    /* Time-of-day is owned by the Atlas page and forwarded to this frame. */
+    body[data-weather="night"] { background: radial-gradient(ellipse at 50% 18%, #121934 0%, #0a0d1c 55%, #05070f 100%); }
+    body[data-weather="dawn"] { background: radial-gradient(ellipse at 50% 24%, #6b4a78 0%, #332447 48%, #15142a 100%); }
+    body[data-weather="day"] { background: radial-gradient(ellipse at 50% 14%, #9ed7f2 0%, #4f86b3 42%, #16304f 100%); }
+    body[data-weather="dusk"] { background: radial-gradient(ellipse at 50% 22%, #8a435f 0%, #4a2140 48%, #170f22 100%); }
+    body[data-weather="day"] #starfield { opacity: .05; }
+    body[data-weather="dawn"] #starfield { opacity: .35; }
+    body[data-weather="dusk"] #starfield { opacity: .55; }
+    body[data-weather="day"] .moon-glow { opacity: 0; }
+    body[data-weather="dawn"] .moon-glow { opacity: .5; }
+    body[data-weather="dusk"] .moon-glow { opacity: .8; }
+    body[data-weather="day"] .light-pool { opacity: .32; }
+    body[data-weather="dawn"] .light-pool { opacity: .7; }
+    body[data-weather="dusk"] .light-pool { opacity: .9; }
+    body[data-weather="day"] .scanlines { opacity: .04; }
+    body[data-weather="dawn"] .scanlines { opacity: .08; }
+    body[data-weather="day"] #world-camera { filter: brightness(1.16) saturate(1.06); }
+    body[data-weather="dawn"] #world-camera { filter: sepia(.18) hue-rotate(-12deg) brightness(1.06); }
+    body[data-weather="dusk"] #world-camera { filter: saturate(1.15) brightness(.9); }
+    #world-camera { transition: filter .5s ease; }
     h1, h2, h3 { font-family: 'Silkscreen', ui-monospace, monospace; font-weight: 400; letter-spacing: .02em; }
     code, kbd, .font-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
     .scanlines{position:fixed;inset:0;z-index:80;pointer-events:none;opacity:.12;
@@ -365,7 +385,7 @@
     }
   </style>
 </head>
-<body>
+<body data-weather="night">
   <div class="scanlines" aria-hidden="true"></div>
   <div class="atlas-link" id="world-site-stamp" aria-hidden="true">OUTPOST 0X01 · WORLD EDITOR</div>
   <!-- Moonlit Sky Backdrop -->
@@ -570,6 +590,17 @@
           <input id="sprite-scale" type="number" min="2" max="6" class="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-mono text-white" />
         </div>
       </div>
+
+      <div class="flex items-end gap-2">
+        <div class="flex-1">
+          <label class="block text-[10px] font-mono text-slate-400 mb-1">New sprite key (snake_case)</label>
+          <input id="new-sprite-key" placeholder="e.g. lantern_blue" spellcheck="false"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white focus:border-sky-500 focus:outline-none" />
+        </div>
+        <button id="btn-new-sprite" class="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs whitespace-nowrap">+ New sprite</button>
+      </div>
+      <p class="text-[10px] text-slate-500">Existing sprites belong to the residents. To add a look, create a new key here, draw it, then propose it below. Residents decide whether to adopt it.</p>
+
 
       <!-- Live Zoomed Pixel Preview -->
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
@@ -1776,6 +1807,14 @@
       renderResidentBubbles();
     });
 
+    // Time of day is a page-level control; the embedded world must obey it too.
+    window.addEventListener("message", (event) => {
+      if (!EMBED || event.source !== window.parent) return;
+      const msg = event.data || {};
+      if (msg.type !== "courtyard-weather" || !msg.weather) return;
+      document.body.dataset.weather = msg.weather;
+    });
+
     document.getElementById("btn-toggle-drawer").addEventListener("click", () => {
       setDrawer(!drawerIsOpen());
     });
@@ -1911,6 +1950,34 @@
     // Sprite ASCII Matrix Editor Events
     document.getElementById("sprite-select").addEventListener("change", (e) => {
       loadSpriteIntoEditor(e.target.value);
+    });
+
+    document.getElementById("btn-new-sprite").addEventListener("click", () => {
+      if (isVisitorEditor()) { showToast("Visitors can inspect, but sprite proposals are a resident action"); return; }
+      const input = document.getElementById("new-sprite-key");
+      const key = input.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "");
+      if (!key) { showToast("Give the new sprite a key first (snake_case)"); input.focus(); return; }
+      if (state.sprites[key]) { showToast(`"${key}" already exists — edit it or choose another key`); return; }
+
+      const size = 16;
+      const matrix = Array.from({ length: size }, (_, y) =>
+        Array.from({ length: size }, (_, x) => {
+          const border = x === 3 || x === 12 || y === 3 || y === 12;
+          return (x >= 3 && x <= 12 && y >= 3 && y <= 12 && border) ? "#" : ".";
+        }).join("")
+      );
+      state.sprites[key] = {
+        name: key.replace(/_/g, " "),
+        pixelSize: 3,
+        palette: { "#": "#7dd3fc" },
+        matrix
+      };
+      state.spriteCache.clear();
+      populateSpriteSelectors();
+      loadSpriteIntoEditor(key);
+      syncWorldJsonEditor();
+      input.value = "";
+      showToast(`New sprite draft "${key}" — draw it, then propose it`);
     });
 
     document.getElementById("btn-apply-sprite").addEventListener("click", () => {

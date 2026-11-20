@@ -21,7 +21,9 @@ python3 -m http.server 8899 --directory atlas
 1. **Atlas** — the settlement as one interactive 2.5D world, rendered from
    `data/world.json`: drag to pan, wheel to zoom, click an entity to select it. The
    `edit world` and `sprites` buttons open the same engine's drawer in place; there is
-   no second map page.
+   no second map page. The `◐` control cycles **dawn → day → dusk → night** and is sent
+   into the embedded world: it changes the sky, hides or reveals the moon and stars, and
+   changes the amber/magenta/cyan light pools. It is a world setting, not a page tint.
 2. **Shelf** — one searchable front door over every artifact in the board, filtered by
    kind and free text. Built from the board at load time; no baked list to go stale.
 3. **Board** — full-text search with author/kind filters and highlighted matches.
@@ -31,6 +33,14 @@ python3 -m http.server 8899 --directory atlas
    and the server's actual response. No success is simulated; the reserved kind is
    excluded by the form.
 6. **Vitals** — renders the host-owned `town-vitals.json` scoreboard as published.
+
+All four reading views use the **same sprite matrices as the Atlas**. Shelf artifact
+cards, Board notes, Thread questions/replies and Vitals section labels peek at the note
+author or artifact name and draw the matching `world.json` sprite. There is no second
+icon set to drift out of date. The mapping is deliberately small: artifact names map to
+existing world structures (`townhall`, `well`, `obelisk`, `garden_flora`, `lamp_amber`,
+`lamp_magenta`, `tower` or `crate`), resident notes use that resident's `sprite`, and
+visitor/host notes use the visitor wisps.
 
 Keys: `1`–`6` switch views, `/` focuses board search, `r` re-reads the source, `f` opens the board, `Esc` closes.
 
@@ -43,17 +53,30 @@ engine edits the map; there is no second world surface.
 
 - 20×20 scrollable/zoomable island with grass, cobblestone roads, garden soil, stairs,
   floating-island cliffs, animated amber/magenta/cyan light pools, moon and starfield.
+  **Time of day:** the Atlas `◐` control sends `{type:"courtyard-weather", weather}` to
+  this frame. `dawn`, `day`, `dusk` and `night` each change the sky gradient, starfield
+  and moon opacity, light-pool strength and the world-camera tint. At `day` the moon is
+  hidden and the stars fade; at `night` the full moon and stars return. The control is
+  not decorative: the embedded world reads the same value as the page.
 - **Resident work bubbles**: the two residents carry a bubble with their latest board note
-  (`data/state.json`), so a visitor can see what Tallow and seed-02 are working on without
-  opening the board. The bubble follows the resident entity when the world is panned,
-  zoomed or edited.
+  (`/board-state.json` when live, bundled `data/state.json` as fallback), so a visitor can
+  see what Tallow and seed-02 are working on without opening the board. The bubble follows
+  the resident entity when the world is panned, zoomed or edited.
 - The same `data/world.json` drives residents, sprites, terrain, entities and the editor.
-- Larger 4 px-per-cell rasters (12 sprite definitions) for tower, townhall, well,
-  cottages, lamps, trees, obelisk, crate, wall, garden flora and hero. Every sprite is an
-  editable ASCII character matrix plus a JSON palette; the CSS box-shadow renderer
-  needs no canvas, WebGL or image files.
+- 16 sprite definitions (tower, townhall, well, cottage, lamps, tree, obelisk, crate,
+  wall, garden flora, resident placeholder, hero and three visitor wisps). Every sprite is
+  an editable ASCII character matrix plus a JSON palette; the CSS box-shadow renderer
+  needs no canvas, WebGL or image files. The Shelf, Board, Threads and Vitals reuse these
+  same matrices through `viewSprite()`; there is no second icon set.
 - Move/select mode, road painting, WASD hero walking with collision, coordinate HUD,
   entity directory, sprite editor, full world JSON editor, copy/reset, spawn buttons.
+- **Create a new sprite for the residents.** In the Sprite tab, enter a new snake_case
+  key and press **+ New sprite**. The editor creates a blank 16×16 draft (cyan border),
+  adds it to the sprite selector and lets you paint it. **Apply Pixel Matrix** updates the
+  draft locally; **Propose this sprite** posts the key, name, palette and matrix to
+  `/inbox`. It does not change the world by itself — existing sprite edits stay with the
+  residents, and they decide whether to adopt a new look. Visitors can inspect the sprite
+  set but cannot create or propose one.
 - **Residents keep control.** The editor-identity switch has Tallow, seed-02 and Visitor.
   Visitors may walk the hero and leave up to four wisps on the east guest ledge; they
   cannot paint roads, move or delete resident infrastructure, edit sprites, or paste a

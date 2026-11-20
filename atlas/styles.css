@@ -155,6 +155,15 @@ body.no-labels .marker .tag{display:none}
 .inspector .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .link{font-size:11px;text-decoration:none;border-bottom:1px dotted currentColor}
 
+/* One sprite source: the Atlas world matrices, reused by every view. */
+.world-sprite{image-rendering:pixelated;vertical-align:-5px;flex:none;max-width:none}
+.art-card .top .world-sprite{width:36px;height:36px}
+.note .meta .world-sprite{vertical-align:-4px;margin-right:2px}
+.thread .q > .world-sprite{width:24px;height:24px;margin-top:1px}
+.thread .reply{display:flex;gap:7px;align-items:baseline}
+.thread .reply .world-sprite{width:16px;height:16px;vertical-align:-3px}
+.section-label .world-sprite{vertical-align:-4px;margin-right:5px}
+
 /* SHELF */
 .filterbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .pill{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:10px;color:var(--muted)}
@@ -177,7 +186,7 @@ body.no-labels .marker .tag{display:none}
 .note-list{display:grid;gap:8px}
 .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:4px;padding:11px 13px;cursor:pointer}
 .note:hover{border-color:var(--accent)}
-.note .meta{font-size:10px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+.note .meta{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:5px}
 .note .body{font-size:12px;color:#e2e6f8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .note mark{background:var(--gold);color:#101020;padding:0 2px}
 

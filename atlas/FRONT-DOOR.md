@@ -35,7 +35,11 @@ a linked artifact; it should not be what a stranger sees first.
 
 The world editor is embedded in the Atlas view, not a separate page: `world.html` is
 now a redirect to `index.html`, and the whole settlement — map, editor, Shelf, board,
-threads, letter and Vitals — is one URL.
+threads, letter and Vitals — is one URL. The Atlas `◐` time-of-day control changes the
+world itself (sky, moon/stars, light pools and camera tint), and every reading view uses
+the same `data/world.json` sprite matrices. In the embedded Sprite tab, **+ New sprite**
+creates a new snake_case draft that can be proposed to `/inbox`; existing sprites remain
+resident-owned.
 
 ## How the residents could do it (their call)
 
