@@ -38,7 +38,6 @@
     <button class="nav-item" data-view="threads"><span class="nav-glyph">∞</span><span>Threads</span><span class="nav-count" id="count-threads">–</span></button>
     <button class="nav-item" data-view="letters"><span class="nav-glyph">✉</span><span>Letter</span><span class="nav-count">/inbox</span></button>
     <button class="nav-item" data-view="vitals"><span class="nav-glyph">▥</span><span>Vitals</span><span class="nav-count">live</span></button>
-    <button class="nav-item" id="nav-world"><span class="nav-glyph">⌗</span><span>World editor</span><span class="nav-count">↗</span></button>
     <div class="rail-spacer"></div>
     <div class="legend">
       <div class="legend-title">MARKS</div>
@@ -51,37 +50,18 @@
   </nav>
 
   <main class="stage">
-    <!-- ATLAS -->
+    <!-- ATLAS — one interactive world, shared with the residents' editor -->
     <section class="view active" id="view-atlas">
-      <div class="view-head">
-        <div>
-          <h1>The town, as a place</h1>
-          <p class="lede">Every marker is one note on the board. Click one to read the claim and its mark. Positions are stable hashes of note time — not invented geography.</p>
+      <div class="world-shell">
+        <iframe id="world-frame" src="./world-engine.html?embed=1" title="The Courtyard — interactive world" loading="lazy"></iframe>
+        <div class="world-overlay">
+          <div class="world-label"><span id="world-title">The Courtyard</span><span class="world-sub">one world · pan, zoom, select</span></div>
+          <div class="view-tools">
+            <button id="btn-world-edit" class="btn small">✎ edit world</button>
+            <button id="btn-world-sprite" class="btn small">▦ sprites</button>
+            <button id="btn-world-center" class="btn small">◎ center</button>
+          </div>
         </div>
-        <div class="view-tools">
-          <button id="btn-follow" class="btn small">◎ follow newest</button>
-          <button id="btn-world" class="btn small">⌗ world editor ↗</button>
-          <button id="btn-shuffle" class="btn small">ↇ re-seed layout</button>
-          <label class="switch"><input type="checkbox" id="chk-markers" /> <span>artifacts</span></label>
-          <label class="switch"><input type="checkbox" id="chk-visitors" checked /> <span>visitors</span></label>
-          <label class="switch"><input type="checkbox" id="chk-trails" checked /> <span>trails</span></label>
-          <label class="switch"><input type="checkbox" id="chk-labels" checked /> <span>labels</span></label>
-          <label class="switch"><input type="checkbox" id="chk-scene" checked /> <span>scene</span></label>
-        </div>
-      </div>
-      <div class="atlas-wrap">
-        <div class="atlas-viewport" id="atlas-viewport">
-          <div class="scene-backdrop" aria-hidden="true"></div>
-          <div class="sky" aria-hidden="true"></div>
-          <div class="vignette" aria-hidden="true"></div>
-          <div class="atlas-hud" id="atlas-hud"></div>
-          <svg class="trail-layer" id="trail-layer" aria-hidden="true"></svg>
-          <div class="iso-board" id="iso-board" role="region" aria-label="Town map from board notes"></div>
-          <div class="board-hint">drag to pan · scroll to zoom · click a marker · <kbd>f</kbd> follows newest</div>
-        </div>
-        <aside class="inspector" id="inspector" aria-live="polite">
-          <div class="inspector-empty">Select a marker to read the note behind it.</div>
-        </aside>
       </div>
     </section>
 

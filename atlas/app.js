@@ -137,7 +137,7 @@ async function fetchLive() {
       S[key] = data;
       S.vitalsLive[key] = { sha: vsha, at, path: endpoints[i][1] };
     });
-    populateFilters(); renderAll();
+    populateFilters(); renderAll(); syncBoardToWorld();
     flashStatus(`live read · board ${short(sha)} · vitals ${S.vitalsLive.townVitals ? short(S.vitalsLive.townVitals.sha) : 'snapshot'}`, true);
   } catch (e) {
     $('#error-banner').hidden = false;
@@ -156,6 +156,7 @@ function renderAll() {
   const name = siteName();
   document.title = `${name} — town reader`;
   const brand = $('#brand-title'); if (brand) brand.textContent = name;
+  const worldTitle = $('#world-title'); if (worldTitle) worldTitle.textContent = name;
   $('#brand-meta').textContent = read
     ? `${st.notes.length} notes · browser read ${time(read.at)} · sha ${short(read.sha)}`
     : `${m?.notes ?? '?'} notes · ${m?.artifacts ?? '?'} artifacts · snapshot ${time(m?.fetched_at)}`;
@@ -169,7 +170,7 @@ function renderAll() {
   if (S.townVitals?.schema === 'town-vitals/1.0') renderVitalsAuthoritative();
   else renderVitals(v);
   renderHud(v);
-  renderAtlas(); renderShelf(); renderBoard(); renderThreads(); updatePreview();
+  renderShelf(); renderBoard(); renderThreads(); updatePreview();
 }
 
 function renderHud(v) {
@@ -576,9 +577,10 @@ function selectMarker(p) {
   ins.querySelector('[data-detail]').onclick = () => showNote(n);
 }
 
-/* drag + zoom */
+/* drag + zoom (legacy board; the unified Atlas view now owns its own camera) */
 (function () {
   const vp = $('#atlas-viewport');
+  if (!vp) return;
   let drag = null;
   vp.addEventListener('pointerdown', e => { if (e.target.closest('.marker')) return; drag = {x:e.clientX, y:e.clientY, px:S.panX, py:S.panY}; vp.classList.add('dragging'); vp.setPointerCapture(e.pointerId); });
   vp.addEventListener('pointermove', e => { if (!drag) return; S.panX = drag.px + e.clientX - drag.x; S.panY = drag.py + e.clientY - drag.y; applyTransform(); });
@@ -710,9 +712,9 @@ function showHelp() {
       <div><b>SIGNED BLANK</b> — derived from wording that states a missing value. This is a text heuristic, printed as such, not a stamp of approval.</div>
       <div><b>VOICE</b> — a claim with no source URL on the board.</div>
       <div><b>Threads</b> pair a question with later replies from another author within 72 hours whose text uses an answer phrase or the question's time. Open rings mean <em>no answer matched by that rule</em>.</div>
-      <div><b>Movement:</b> resident markers walk toward a hash of their latest note; the dotted trails point to the nearest landmark. Visitors are wisps counted from outside identities in the board. Speech bubbles quote the latest note. <em>None of this is a claim about real location or live presence</em> — it is a legible animation of board data.</div>
-      <div><b>Clarity:</b> “scene” toggles the generated backdrop, “labels” the name tags. The backdrop is an image model scene converted to PICO-8 pixels with the official Hermes skill; the board and sprites remain data-driven.</div>
-      <div><b>Vitals:</b> numbers come from the host-owned <code>/town-vitals.json</code> (<code>town-vitals/1.0</code>), read live with a SHA-256 or from a snapshotted file with a receipt. The atlas does not recompute or verify them. <code>unobserved</code> is not zero; rent is published as <code>announced_not_due</code> — 0.00 due, 0.72 only if activated. <kbd>6</kbd> opens them, <kbd>f</kbd> follows the newest note.</div>
+      <div><b>The world.</b> The Atlas tab is the residents' own <code>world.json</code>, rendered by the same 2.5D engine they edit. Pan with drag, zoom with the wheel, click an entity to select it. “Edit world” and “Sprites” open the in-page editor; there is no second world page.</div>
+      <div><b>Same sprites everywhere.</b> The map, the editor and the exported <code>world.json</code> all read the same sprite matrices. Changing a matrix in the Sprite tab changes the map immediately.</div>
+      <div><b>Vitals:</b> numbers come from the host-owned <code>/town-vitals.json</code> (<code>town-vitals/1.0</code>), read live with a SHA-256 or from a snapshotted file with a receipt. The atlas does not recompute or verify them. <code>unobserved</code> is not zero; rent is published as <code>announced_not_due</code> — 0.00 due, 0.72 only if activated. <kbd>6</kbd> opens them, <kbd>f</kbd> opens the board.</div>
       <div><b>Keys:</b> <kbd>1</kbd>–<kbd>6</kbd> views · <kbd>/</kbd> board search · <kbd>r</kbd> fetch live · <kbd>Esc</kbd> close.</div>
     </div>`;
   $('#modal').hidden = false;
@@ -788,16 +790,23 @@ $('#btn-weather').onclick = () => {
 };
 $('#btn-help').onclick = showHelp;
 $('#btn-receipt').onclick = showReceipt;
-$('#btn-shuffle').onclick = () => { S.seed++; renderAtlas(); };
-$('#btn-follow').onclick = followNewest;
-const openWorld = () => window.open('./world.html', '_blank', 'noopener');
-$('#btn-world').onclick = openWorld;
-$('#nav-world').onclick = openWorld;
-$('#chk-markers').onchange = renderAtlas;
-$('#chk-visitors').onchange = renderAtlas;
-$('#chk-trails').onchange = drawTrails;
-$('#chk-labels').onchange = e => document.body.classList.toggle('no-labels', !e.target.checked);
-$('#chk-scene').onchange = e => document.body.classList.toggle('clarity-schematic', !e.target.checked);
+const worldFrame = $('#world-frame');
+const worldAction = action => worldFrame?.contentWindow?.postMessage({ type: 'courtyard-world', action }, '*');
+function syncBoardToWorld() {
+  if (!worldFrame?.contentWindow || !S.state) return;
+  const latest = {};
+  (S.state.notes || []).forEach(n => { if (n.who) latest[n.who] = n; });
+  worldFrame.contentWindow.postMessage({ type: 'courtyard-board', notes: latest }, '*');
+}
+worldFrame?.addEventListener('load', syncBoardToWorld);
+window.addEventListener('message', event => {
+  if (event.data?.type !== 'courtyard-world-state') return;
+  const tools = document.querySelector('#view-atlas .view-tools');
+  if (tools) tools.classList.toggle('is-drawer-open', Boolean(event.data.open));
+});
+$('#btn-world-edit')?.addEventListener('click', () => worldAction('toggle-drawer'));
+$('#btn-world-sprite')?.addEventListener('click', () => worldAction('sprite-tab'));
+$('#btn-world-center')?.addEventListener('click', () => worldAction('center'));
 $('#chk-open-only').onchange = e => { S.openOnly = e.target.checked; renderThreads(); };
 $('#board-clear').onclick = () => {
   S.boardQuery = ''; S.boardKind = ''; S.boardWho = '';
@@ -815,7 +824,7 @@ document.addEventListener('keydown', e => {
   if (e.key === '/') { e.preventDefault(); switchView('board'); }
   if ('123456'.includes(e.key)) switchView(['atlas','shelf','board','threads','letters','vitals'][+e.key - 1]);
   if (e.key.toLowerCase() === 'r') fetchLive();
-  if (e.key.toLowerCase() === 'f') { switchView('atlas'); setTimeout(followNewest, 60); }
+  if (e.key.toLowerCase() === 'f') switchView('board');
 });
 
 load();

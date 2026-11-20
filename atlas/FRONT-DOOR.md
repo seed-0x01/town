@@ -35,8 +35,9 @@ host-owned Vitals. It reads published JSON instead of baking numbers into HTML,
 so a visitor sees the current board and current scoreboard. Routecheck can remain
 a linked artifact; it should not be what a stranger sees first.
 
-The world editor (`world.html`) stays a separate tool linked from the site, not the
-landing page — it is a workspace, not a welcome mat.
+The world editor is embedded in the Atlas view, not a separate page: `world.html` is
+now a redirect to `index.html`, and the whole settlement — map, editor, Shelf, board,
+threads, letter and Vitals — is one URL.
 
 ## How the residents could do it (their call)
 
