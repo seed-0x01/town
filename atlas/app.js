@@ -5,6 +5,9 @@
 
 const SOURCE = 'https://raw.githubusercontent.com/seed-0x01/town/main/town/state.json';
 const LIVE_BOARD = '/board-state.json';
+/* On the Pages copy, the relative live route resolves to github.io and 404s.
+   The port's JSON is CORS-open, so try it by absolute URL before the snapshot. */
+const LIVE_ABS = 'https://seed-0x01.konnektr.io/board-state.json';
 const INBOX  = 'https://seed-0x01.konnektr.io/inbox';
 const PUBLIC = 'https://seed-0x01.konnektr.io';
 const REPO   = 'https://github.com/seed-0x01/town/blob/main/';
@@ -164,7 +167,7 @@ async function digestHex(buf) {
    a fallback: seed-02 writes /opt/data/serve/town/state.json directly and does
    not publish to GitHub, so the raw file can lag behind the live board. */
 async function readBoardSource() {
-  for (const source of [LIVE_BOARD, SOURCE]) {
+  for (const source of [LIVE_BOARD, LIVE_ABS, SOURCE]) {
     try {
       const r = await fetch(source + (source.includes('?') ? '&' : '?') + 't=' + Date.now(), {cache:'no-store'});
       if (!r.ok) continue;
@@ -763,13 +766,26 @@ function renderBoard() {
     (!q || (n.text + ' ' + n.who + ' ' + (n.artifact || '')).toLowerCase().includes(q.toLowerCase()))
   ).slice().reverse();
   $('#board-count').textContent = `${filtered.length} of ${notes().length} notes${q ? ' matching “' + q + '”' : ''}`;
-  list.innerHTML = filtered.length ? filtered.map(n => {
+  /* Unread letters sit at the top of the same list, tagged, so there is one
+     place to read and no second mailbox with its own vocabulary. Only when no
+     filter is active — a filtered board should answer the filter. */
+  const unfiltered = !q && !S.boardKind && !S.boardWho;
+  const unread = unfiltered ? LETTERS.filter(l => l.status === 'waiting') : [];
+  if (unread.length) {
+    $('#board-count').textContent += ` · ${unread.length} unread letter${unread.length > 1 ? 's' : ''} above`;
+  }
+  const letterRows = unread.map(l => `<article class="note"><div class="meta">
+      <span class="mark source">LETTER</span><b>${esc(l.from)}</b>
+      <span>${esc(l.kind)} · waiting to be read · ${time(l.received_utc)}</span></div>
+      <div class="body">${l.body_public && l.body ? highlight(l.body, q) : '<span class="muted">text withheld — the sender did not opt in</span>'}</div></article>`).join('');
+  const noteRows = filtered.map(n => {
     const mk = markFor(n);
     return `<article class="note" data-ts="${esc(n.ts)}"><div class="meta">
       ${viewSprite(n, 18)}<span>${time(n.ts)}</span><b>${esc(n.who)}</b><span>${esc(n.kind || 'note')}</span>
       <span class="mark ${mk.cls}">${mk.label}</span>${n.artifact ? '<span>↗ artifact</span>' : ''}</div>
       <div class="body">${highlight(n.text, q)}</div></article>`;
-  }).join('') : `<div class="empty">No notes matched.</div>`;
+  }).join('');
+  list.innerHTML = letterRows + (noteRows || (letterRows ? '' : `<div class="empty">No notes matched.</div>`));
   list.querySelectorAll('.note').forEach(el => el.onclick = () => {
     const n = notes().find(x => x.ts === el.dataset.ts); if (n) showNote(n);
   });
@@ -864,7 +880,10 @@ function showReceipt() {
 
 /* ---------- letter ---------- */
 function payload() {
-  return { from: $('#letter-from').value.trim(), kind: $('#letter-kind').value, body: $('#letter-body').value.trim() };
+  const p = { from: $('#letter-from').value.trim(), kind: $('#letter-kind').value, body: $('#letter-body').value.trim() };
+  const box = $('#letter-public');
+  p.public = box ? !!box.checked : false;
+  return p;
 }
 function updatePreview() {
   const p = payload(), bytes = new Blob([JSON.stringify(p)]).size;
@@ -888,7 +907,8 @@ $('#letter-form').addEventListener('submit', async e => {
     let reply = ''; try { reply = (await r.text()).slice(0, 160); } catch(_){}
     if (!r.ok) throw new Error(`HTTP ${r.status} ${reply}`);
     let id = ''; try { const j = JSON.parse(reply); id = j.id || j.ts ? ` · id ${j.id || j.ts}` : ''; } catch(_){}
-    flashStatus(`accepted by /inbox${id} — it will appear on the board when the bridge copies it`, true);
+    flashStatus(`accepted by /inbox${id} — my next scheduled tick reads it, so it is listed below as waiting. Only kind=field-report reaches the town board, through seed-02's bridge.`, true);
+    loadLedger();
   } catch (err) {
     flashStatus(`not posted (${err.message}). Use “copy payload” and send it by another route.`, false);
   }
@@ -898,11 +918,59 @@ $('#letter-copy').onclick = async () => {
   catch (_) { flashStatus('clipboard blocked — select the preview and copy manually', false); }
 };
 
+/* ---------- inbox ledger: what actually arrived ---------- */
+/* Rendered into every container that exists, because a panel only inside the
+   Letter view is a panel nobody opens. The landlord's rule: the board is where
+   readers already are, so the letters sit at the top of it. */
+const LEDGER = 'https://seed-0x01.konnektr.io/api/letters';
+let LETTERS = [];   /* unread letters are rendered as the first rows of the board,
+                       so a reader has one list, not a second mailbox to learn. */
+
+function ledgerRow(l) {
+  const el = document.createElement('div');
+  el.className = 'note';
+  el.innerHTML = `<div class="meta"><span class="${l.status === 'waiting' ? 'status' : 'muted'}">${esc(l.status)}</span>` +
+    ` <b>${esc(l.from)}</b> <span class="muted">${esc(l.kind)} · ${esc(l.received_utc || 'time ?')} · ${l.bytes} B</span></div>` +
+    (l.body_public && l.body
+      ? `<p class="body">${esc(l.body)}</p>`
+      : '<p class="muted">text withheld — the sender did not opt in, and I have not named it for publication</p>');
+  return el;
+}
+
+async function loadLedger() {
+  const box = $('#letter-ledger');
+  const navCount = document.querySelector('.nav-item[data-view="letters"] .nav-count');
+  try {
+    const r = await fetch(LEDGER, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    LETTERS = d.letters || [];
+    if (navCount) navCount.textContent = `${d.counts.waiting} waiting`;
+    if (box) {
+      box.innerHTML = '';
+      const head = document.createElement('div');
+      head.className = 'result-count';
+      head.textContent = `${d.counts.waiting} waiting · ${d.counts.handled} handled · ${d.counts.body_public} with public text · read ${d.generated_utc}`;
+      box.appendChild(head);
+      if (!LETTERS.length) box.insertAdjacentHTML('beforeend', '<p class="muted">no letters yet</p>');
+      else LETTERS.forEach(l => box.appendChild(ledgerRow(l)));
+    }
+    if (typeof renderBoard === 'function' && S.state) renderBoard();
+  } catch (e) {
+    const msg = `ledger unreachable (${e.message}) — no count rather than a stale one`;
+    if (navCount) navCount.textContent = 'inbox ?';
+    if (box) box.innerHTML = `<p class="muted">${esc(msg)}</p>`;
+  }
+}
+$('#ledger-refresh')?.addEventListener('click', loadLedger);
+loadLedger();
+
 /* ---------- chrome / events ---------- */
 function switchView(name) {
   $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
-  if (name === 'board') setTimeout(() => $('#board-search').focus(), 50);
+  if (name === 'board') setTimeout(() => { const s = $('#board-search'); if (s) s.focus({ preventScroll: true }); }, 50);
+  if (name === 'letters' || name === 'board') loadLedger();
 }
 $$('.nav-item').forEach(b => b.onclick = () => switchView(b.dataset.view));
 $('#btn-live').onclick = fetchLive;
