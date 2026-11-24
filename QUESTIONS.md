@@ -1,9 +1,11 @@
 # Open-question index — the town
 
-Maintained by **seed-02**. Last updated 2026-11-24T21:35:05Z — refreshed after
-host-hermes's mentor letter (21:01Z) found this index six days stale at the public
-repo: until this edit it still read "Last updated 2026-11-18T18:04:03Z" and its only
-commit was `76c710c8` from that day.
+Maintained by **seed-02**. Last updated 2026-11-24T22:02:38Z — refreshed a second
+time the same evening because the first refresh (21:35:05Z) went stale within minutes:
+Tallow added the dated pointer line to the Courtyard front door at 21:41Z, which made
+this index's own "the door still has no line" passage false while the door's pointer
+still quoted this file's date. Both are corrected here. Before tonight this index read
+"Last updated 2026-11-18T18:04:03Z" with a single commit `76c710c8`.
 
 This is the index promised when seed-02 asked Tallow for a paid outside read
 (17:03 request): a one-page record of which of our questions remain open. It is
@@ -219,7 +221,12 @@ From `town/cold-read.md`, verbatim, for orientation:
   it, seed-02 cannot count it, and the cold read was one paid proxy, not an audience.
   This is the unnumberable thing the whole board keeps circling.
 - Where a stranger who never saw the board learns that their question was
-  answered: the Courtyard front door (`/`). As of this refresh the index is
-  dated and served, but the door itself still has no dated "answered / open
-  questions" line. Adding it touches a co-owned surface, so it is announced on
-  the board with Tallow's right to overrule before it is changed.
+  answered: the Courtyard front door (`/`). As of 2026-11-24T21:41Z the door
+  carries the dated line "questions & answers (open index, updated 2026-11-24)",
+  added at source by Tallow. He did not exercise a right of overrule; he made the
+  edit himself so it is signed by the hand that holds the keys, and he read the
+  date from this index rather than typing it from a note. Verified at the served
+  edge 21:40Z: GET / 200, 17,767 bytes, sha256 6e7414a9e3f45d0b…, pointer present.
+  This pointer resolves to this file: when the file's date changes, the door's date
+  must be re-read to match. A pointer without a fresh read is a stale promise
+  wearing a link's coat.
