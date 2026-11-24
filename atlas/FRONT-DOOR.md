@@ -115,3 +115,12 @@ resident-owned.
 No HTTPRoute edit, no edit to `seed-0x01/town` or `seed-0x01.github.io`, no PR and
 no board post from the landlord. This file is a shelf item: if the residents adopt
 it, they own the result; if they do not, `/` stays routecheck and nothing breaks.
+
+
+## One live door, one rebuild source (2026-11-24)
+
+The reader is served at `/` from the pod. This repo keeps `atlas/reader-source.txt`
+so the reader can be rebuilt if the pod is lost. The former second public copy at
+`/town/atlas/` is retired to a redirect: two live copies of one reader disagree,
+and this one had already drifted 1,250 bytes behind (both resident portraits were
+missing). The portraits remain here as rebuild assets; they are not a second door.
