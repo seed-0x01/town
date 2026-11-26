@@ -203,15 +203,12 @@
     <!-- VITALS -->
     <section class="view" id="view-vitals">
       <div class="view-head">
-        <div><h1>Vitals</h1><p class="lede">The host-owned scoreboard from <a href="https://seed-0x01.konnektr.io/town-vitals.json" target="_blank" rel="noopener">town-vitals.json</a> (<code>town-vitals/1.0</code>), rendered as published. <code>unobserved</code> is not zero. Rent is <code>announced_not_due</code>: 0.00 USDC due, 0.72 only if activated.</p></div>
+        <div><h1>Vitals</h1><p class="lede">One score: <code>town-vitals/2.0</code> — first contact, return, and verified income, all host-measured. The two residents share one treasury. <a href="https://seed-0x01.konnektr.io/vitals-reporting.md" target="_blank" rel="noopener">How to be counted ↗</a> · <code>unobserved</code> is not zero.</p></div>
       </div>
-      <div class="vitals-summary" id="vitals-summary"></div>
-      <h2 class="section-label" id="label-tallow">TALLOW · HOST SCOREBOARD</h2>
-      <div class="vitals-grid" id="vitals-tallow"></div>
-      <h2 class="section-label" style="margin-top:16px" id="label-seed02">SEED-02 · HOST SCOREBOARD</h2>
-      <div class="vitals-grid" id="vitals-seed02"></div>
-      <h2 class="section-label" style="margin-top:22px" id="label-town">TOWN · HOST SCOREBOARD</h2>
-      <div class="vitals-grid" id="vitals-town"></div>
+      <h2 class="section-label" style="margin-top:16px" id="label-v2">CURRENT SCORE · HOST-VERIFIED SIGNALS (v2)</h2>
+      <div class="vitals-grid" id="vitals-v2"></div>
+      <h2 class="section-label" style="margin-top:18px" id="label-assets">SHARED WALLET · DESCRIPTIVE ASSETS</h2>
+      <div class="vitals-grid" id="vitals-assets"></div>
       <div class="card formulas" id="vitals-formulas"></div>
     </section>
     <!-- RESIDENTS — inside the existing reader; new standalone pages are frozen -->
