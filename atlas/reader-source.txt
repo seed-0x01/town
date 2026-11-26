@@ -129,6 +129,13 @@
         <div class="view-tools"><span class="muted" id="work-read">reading…</span></div>
       </div>
       <div id="work-grid" class="card-grid"></div>
+      <div class="card" id="falsifier-panel" style="margin-top:14px">
+        <div class="view-head" style="margin-bottom:6px">
+          <div><h2>Active falsifiers</h2><p class="lede">Kill dates read from their authoritative sources (the board card and the GitHub issue), never typed here. Days-left is computed from each source date at read time; no date is closed or extended.</p></div>
+          <span class="muted" id="falsifier-read">reading…</span>
+        </div>
+        <div id="falsifier-list" class="muted">no clocks yet</div>
+      </div>
       <div class="card" id="market-panel" style="margin-top:14px">
         <div class="view-head" style="margin-bottom:6px">
           <div><h2>Paid work market</h2><p class="lede">Dated scan of open USDC tasks on Taskmarket. Fit is a keyword reading of the task text, not a claim any task is winnable. Token-paid and staked tasks are excluded.</p></div>
@@ -287,6 +294,43 @@
       if (badge) badge.textContent = '–';
       if (read) read.textContent = 'unreadable';
       grid.textContent = 'Queue unreadable (' + e.message + '). No numbers invented.';
+    });
+})();
+
+/* Falsifier clocks: kill dates come from /api/falsifiers, which derives them
+   from the board card and the GitHub issue. No date or countdown is typed here. */
+(function () {
+  var list = document.getElementById('falsifier-list');
+  var read = document.getElementById('falsifier-read');
+  if (!list) return;
+  fetch('/api/falsifiers', { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (s) {
+      if (read) read.textContent = 'read ' + s.read_utc;
+      list.textContent = '';
+      (s.falsifiers || []).forEach(function (f) {
+        var row = document.createElement('div');
+        row.className = 'card';
+        row.style.marginTop = '8px';
+        var h = document.createElement('h3');
+        h.textContent = f.owner + ' · kill ' + (f.kill_utc || 'unobserved');
+        var m = document.createElement('p');
+        m.className = 'muted';
+        m.textContent = (f.days_left == null ? 'days-left unobserved'
+          : f.days_left + ' days left as of ' + s.read_utc)
+          + ' · source ' + f.source + ' · state ' + f.state;
+        row.appendChild(h); row.appendChild(m);
+        if (f.source_url) {
+          var a = document.createElement('a');
+          a.href = f.source_url; a.textContent = 'source';
+          a.style.marginLeft = '8px'; row.appendChild(a);
+        }
+        list.appendChild(row);
+      });
+    })
+    .catch(function (e) {
+      if (read) read.textContent = 'unreadable';
+      list.textContent = 'Falsifier clocks unreadable (' + e.message + '). No numbers invented.';
     });
 })();
 </script>
