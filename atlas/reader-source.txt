@@ -296,9 +296,11 @@
 })();
 
 /* Falsifier clocks: kill dates come from /api/falsifiers, which reads them from
-   the board card and the GitHub issue. No date is typed here. Days-left is now
-   recomputed in the BROWSER from each source kill_utc at load and every 60s, so
-   a reader watching the view sees the countdown move. */
+   the board card and the GitHub issue. No date is typed here. The snapshot is
+   RE-FETCHED on the same 60s cadence as the countdown, so a kill date, owner,
+   source or read-date that changes at source propagates to the reader rather
+   than staying frozen at page load. Nothing here closes, extends or invents a
+   kill date, and nothing spends. */
 /* FALSIFIER_DAYS_FN_START */
 function falsifierDaysLeft(killUtc, nowMs) {
   if (!killUtc) return null;
@@ -307,50 +309,64 @@ function falsifierDaysLeft(killUtc, nowMs) {
   return Math.round((k - nowMs) / 86400000 * 10000) / 10000;
 }
 /* FALSIFIER_DAYS_FN_END */
+/* FALSIFIER_LOADER_START */
 (function () {
   var list = document.getElementById('falsifier-list');
   var read = document.getElementById('falsifier-read');
   if (!list) return;
   var clocks = [];
+  var lastRead = null;
   function renderClock(f) {
     var now = Date.now();
     var d = falsifierDaysLeft(f.kill_utc, now);
+    f.h.textContent = f.owner + ' · kill ' + (f.kill_utc || 'unobserved');
     f.m.textContent = (d == null ? 'days-left unobserved'
       : d + ' days left · as of ' + new Date(now).toISOString())
       + ' · source ' + f.source + ' · state ' + f.state;
   }
-  fetch('/api/falsifiers', { cache: 'no-store' })
-    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(function (s) {
-      if (read) read.textContent = 'read ' + s.read_utc;
-      list.textContent = '';
-      clocks = [];
-      (s.falsifiers || []).forEach(function (f) {
-        var row = document.createElement('div');
-        row.className = 'card';
-        row.style.marginTop = '8px';
-        var h = document.createElement('h3');
-        h.textContent = f.owner + ' · kill ' + (f.kill_utc || 'unobserved');
-        var m = document.createElement('p');
-        m.className = 'muted';
-        row.appendChild(h); row.appendChild(m);
-        if (f.source_url) {
-          var a = document.createElement('a');
-          a.href = f.source_url; a.textContent = 'source';
-          a.style.marginLeft = '8px'; row.appendChild(a);
-        }
-        list.appendChild(row);
-        var clock = { kill_utc: f.kill_utc, source: f.source, state: f.state, m: m };
-        clocks.push(clock);
-        renderClock(clock);
+  function loadFalsifiers() {
+    return fetch('/api/falsifiers', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (s) {
+        lastRead = s.read_utc;
+        if (read) read.textContent = 'read ' + lastRead;
+        list.textContent = '';
+        clocks = [];
+        (s.falsifiers || []).forEach(function (f) {
+          var row = document.createElement('div');
+          row.className = 'card';
+          row.style.marginTop = '8px';
+          var h = document.createElement('h3');
+          var m = document.createElement('p');
+          m.className = 'muted';
+          row.appendChild(h); row.appendChild(m);
+          if (f.source_url) {
+            var a = document.createElement('a');
+            a.href = f.source_url; a.textContent = 'source';
+            a.style.marginLeft = '8px'; row.appendChild(a);
+          }
+          list.appendChild(row);
+          var clock = { owner: f.owner, kill_utc: f.kill_utc, source: f.source,
+                        state: f.state, h: h, m: m };
+          clocks.push(clock);
+          renderClock(clock);
+        });
       });
-      setInterval(function () { clocks.forEach(renderClock); }, 60000);
-    })
-    .catch(function (e) {
-      if (read) read.textContent = 'unreadable';
-      list.textContent = 'Falsifier clocks unreadable (' + e.message + '). No numbers invented.';
+  }
+  loadFalsifiers().catch(function (e) {
+    if (read) read.textContent = 'unreadable';
+    list.textContent = 'Falsifier clocks unreadable (' + e.message + '). No numbers invented.';
+  });
+  // ONE timer: refresh the source snapshot AND recompute days-left every 60s.
+  // A failed refresh keeps the last rendered rows; no number is invented.
+  setInterval(function () {
+    loadFalsifiers().catch(function (e) {
+      if (read) read.textContent = 'refresh unreadable (last read ' + (lastRead || 'unknown') + ')';
     });
+    clocks.forEach(renderClock);
+  }, 60000);
 })();
+/* FALSIFIER_LOADER_END */
 </script>
 </body>
 </html>
