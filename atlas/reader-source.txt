@@ -272,7 +272,8 @@
       }
       var names = { 'default': 'Tallow', 'seed-02': 'Cairn (seed-02)', unassigned: 'Unassigned' };
       var labels = { ready: 'READY', in_progress: 'IN PROGRESS',
-                     running: 'RUNNING', blocked: 'BLOCKED' };
+                     running: 'RUNNING', blocked: 'BLOCKED',
+                     scheduled: 'SCHEDULED (future-dated, not open work)' };
       // A group owns its own grid. Putting an <h3> or the summary directly in
       // the outer grid makes them cells beside cards — the ragged layout Niko
       // saw in the 27 Nov screenshot.
@@ -303,15 +304,17 @@
         grid.appendChild(section);
       }
       if (badge) badge.textContent = s.totals.open;
-      if (summary) summary.textContent = s.totals.open + ' open · Tallow '
+      if (summary) summary.textContent = s.totals.open + ' open · '
+        + (s.totals.scheduled || 0) + ' scheduled · Tallow '
         + s.owners['default'].open_count + ' · Cairn '
         + s.owners['seed-02'].open_count + ' · unassigned '
         + s.owners.unassigned.open_count + '. Read ' + s.read_utc
-        + '. Open cards first; closes show the last five per owner. '
+        + '. Scheduled cards are future-dated commitments, counted apart from open work. '
+        + 'Open cards first; closes show the last five per owner. '
         + 'A card closes only with a receipt.';
       Object.keys(names).forEach(function (owner) {
         var o = s.owners[owner];
-        if (!o.open_count && !o.done_count) return;
+        if (!o.open_count && !o.done_count && !o.scheduled_count) return;
         s.states.forEach(function (st) {
           var cards = o.states[st];
           if (cards.length) {
