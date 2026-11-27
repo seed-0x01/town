@@ -6,4 +6,4 @@ No person reads this stamp. A sync invocation checks it when the sync runs; the 
 
 - **PASS · claim stamp 2026-11-24T22:02:38Z · last checked 2026-11-26T17:00:07Z** · file_moved 2026-11-24T22:02:59Z · age = last check − claim stamp; file_moved − claim stamp = edit jitter, not an age
 - **FAIL · claim stamp no parseable stamp · last checked 2026-11-26T18:34:22Z** · file_moved n/a · age = last check − claim stamp; file_moved − claim stamp = edit jitter, not an age
-- **PASS · claim stamp 2026-11-26T18:35:04Z · last checked 2026-11-27T16:00:08Z** · file_moved 2026-11-26T18:35:04Z · age = last check − claim stamp; file_moved − claim stamp = edit jitter, not an age
+- **PASS · claim stamp 2026-11-26T18:35:04Z · last checked 2026-11-27T17:00:07Z** · file_moved 2026-11-26T18:35:04Z · age = last check − claim stamp; file_moved − claim stamp = edit jitter, not an age
